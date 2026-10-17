@@ -1,0 +1,547 @@
+{
+  "info": {
+    "name": "Recetas API",
+    "description": "Colección de la app de recetas. Fases 1 y 2: Auth, CRUD de User y CRUD de Recetas. Correr las carpetas EN ORDEN: Health → Auth → Users (perfil) → Recipes → Users (borrar cuenta).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /auth/register - caso feliz (Ana)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 creado', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('devuelve token y usuario', () => {",
+                  "  pm.expect(body.token).to.be.a('string');",
+                  "  pm.expect(body.user.email).to.eql(pm.environment.get('userEmail'));",
+                  "});",
+                  "if (body.token) pm.environment.set('token', body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ana\",\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /auth/register - email duplicado (error)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('409 conflicto', () => pm.response.to.have.status(409));"] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ana Otra\",\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /auth/login - caso feliz",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 ok', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('devuelve token', () => pm.expect(body.token).to.be.a('string'));",
+                  "if (body.token) pm.environment.set('token', body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /auth/login - password incorrecto (error)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('401 no autorizado', () => pm.response.to.have.status(401));"] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"clave-mala\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /auth/register - segundo usuario (Luis, para pruebas de permisos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 creado', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body.token) pm.environment.set('tokenLuis', body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Luis\",\n  \"email\": \"{{userEmailLuis}}\",\n  \"password\": \"123456\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users - perfil",
+      "item": [
+        {
+          "name": "GET /users/me - caso feliz",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 ok', () => pm.response.to.have.status(200));",
+                  "pm.test('trae el email correcto', () => {",
+                  "  pm.expect(pm.response.json().user.email).to.eql(pm.environment.get('userEmail'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/users/me"
+          }
+        },
+        {
+          "name": "GET /users/me - sin token (error)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('401 no autorizado', () => pm.response.to.have.status(401));"] }
+            }
+          ],
+          "request": { "method": "GET", "url": "{{baseUrl}}/users/me" }
+        },
+        {
+          "name": "PUT /users/me - editar nombre (caso feliz)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 ok', () => pm.response.to.have.status(200));",
+                  "pm.test('nombre actualizado', () => {",
+                  "  pm.expect(pm.response.json().user.name).to.eql('Ana Pérez');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/users/me",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Ana Pérez\"\n}" }
+          }
+        },
+        {
+          "name": "PUT /users/me - password muy corto (error)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('400 bad request', () => pm.response.to.have.status(400));"] }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/users/me",
+            "body": { "mode": "raw", "raw": "{\n  \"password\": \"123\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recipes",
+      "item": [
+        {
+          "name": "POST /recipes - crear 'Zanahorias al horno' (pública)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 creada', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.environment.set('recipeIdZanahorias', body.recipe.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/recipes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Zanahorias al horno\",\n  \"description\": \"Guarnición sencilla\",\n  \"ingredients\": [{ \"name\": \"zanahoria\", \"quantity\": \"3\", \"unit\": \"unidades\" }],\n  \"steps\": [\"Pelar\", \"Hornear 20 minutos\"],\n  \"isPublic\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /recipes - crear 'árepas' (pública, con tilde)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 creada', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.environment.set('recipeIdArepas', body.recipe.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/recipes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"árepas\",\n  \"ingredients\": [{ \"name\": \"harina pan\", \"quantity\": \"2\", \"unit\": \"tazas\" }],\n  \"steps\": [\"Mezclar\", \"Formar\", \"Cocinar en budare\"],\n  \"isPublic\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /recipes - crear 'Buñuelos' (privada)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 creada', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.environment.set('recipeIdBunuelos', body.recipe.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/recipes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Buñuelos\",\n  \"ingredients\": [{ \"name\": \"yuca\", \"quantity\": \"1\", \"unit\": \"kg\" }],\n  \"steps\": [\"Rallar\", \"Freír\"],\n  \"isPublic\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /recipes - título duplicado 'AREPAS' (error)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('409 conflicto', () => pm.response.to.have.status(409));"] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenLuis}}" }
+            ],
+            "url": "{{baseUrl}}/recipes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"AREPAS\",\n  \"ingredients\": [{ \"name\": \"harina\" }],\n  \"steps\": [\"paso\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /recipes - sin ingredientes (error)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('400 bad request', () => pm.response.to.have.status(400));"] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/recipes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Receta incompleta\",\n  \"ingredients\": [],\n  \"steps\": [\"paso\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /recipes/mine - orden alfabético (caso feliz)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 ok', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const titles = body.recipes.map(r => r.title);",
+                  "pm.test('3 recetas, orden alfabético (árepas, Buñuelos, Zanahorias...)', () => {",
+                  "  pm.expect(titles).to.eql(['árepas', 'Buñuelos', 'Zanahorias al horno']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/recipes/mine"
+          }
+        },
+        {
+          "name": "GET /recipes/mine - sin token (error)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('401 no autorizado', () => pm.response.to.have.status(401));"] }
+            }
+          ],
+          "request": { "method": "GET", "url": "{{baseUrl}}/recipes/mine" }
+        },
+        {
+          "name": "GET /recipes - generales (públicas, sin la privada)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 ok', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('2 recetas públicas, sin Buñuelos', () => {",
+                  "  pm.expect(body.recipes.length).to.eql(2);",
+                  "  pm.expect(body.recipes.some(r => r.title === 'Buñuelos')).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": { "method": "GET", "url": "{{baseUrl}}/recipes" }
+        },
+        {
+          "name": "GET /recipes/:id - Luis intenta ver receta privada de Ana (error 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('403 prohibido', () => pm.response.to.have.status(403));"] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLuis}}" }],
+            "url": "{{baseUrl}}/recipes/{{recipeIdBunuelos}}"
+          }
+        },
+        {
+          "name": "PUT /recipes/:id - Luis intenta editar receta de Ana (error 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('403 prohibido', () => pm.response.to.have.status(403));"] }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenLuis}}" }
+            ],
+            "url": "{{baseUrl}}/recipes/{{recipeIdBunuelos}}",
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Hackeada\"\n}" }
+          }
+        },
+        {
+          "name": "DELETE /recipes/:id - Luis intenta borrar receta de Ana (error 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('403 prohibido', () => pm.response.to.have.status(403));"] }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLuis}}" }],
+            "url": "{{baseUrl}}/recipes/{{recipeIdBunuelos}}"
+          }
+        },
+        {
+          "name": "PUT /recipes/:id - Ana edita su receta (caso feliz)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 ok', () => pm.response.to.have.status(200));",
+                  "pm.test('ahora es pública', () => pm.expect(pm.response.json().recipe.isPublic).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/recipes/{{recipeIdBunuelos}}",
+            "body": { "mode": "raw", "raw": "{\n  \"isPublic\": true\n}" }
+          }
+        },
+        {
+          "name": "DELETE /recipes/:id - Ana borra 'Zanahorias al horno' (caso feliz)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('204 sin contenido', () => pm.response.to.have.status(204));"] }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/recipes/{{recipeIdZanahorias}}"
+          }
+        },
+        {
+          "name": "GET /recipes/mine - quedan 2 tras el borrado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 ok', () => pm.response.to.have.status(200));",
+                  "pm.test('quedan 2 recetas', () => pm.expect(pm.response.json().recipes.length).to.eql(2));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/recipes/mine"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users - borrar cuenta (al final, cascada)",
+      "item": [
+        {
+          "name": "DELETE /users/me - caso feliz",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('204 sin contenido', () => pm.response.to.have.status(204));"] }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/users/me"
+          }
+        },
+        {
+          "name": "GET /users/me - token de cuenta borrada (error)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('404 no encontrado', () => pm.response.to.have.status(404));"] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/users/me"
+          }
+        },
+        {
+          "name": "GET /recipes - cascada: las recetas de Ana ya no existen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 ok', () => pm.response.to.have.status(200));",
+                  "pm.test('0 recetas públicas (se borraron con la cuenta)', () => {",
+                  "  pm.expect(pm.response.json().recipes.length).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": { "method": "GET", "url": "{{baseUrl}}/recipes" }
+        }
+      ]
+    }
+  ]
+}
